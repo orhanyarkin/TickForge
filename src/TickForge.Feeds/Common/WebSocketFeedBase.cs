@@ -27,6 +27,8 @@ public abstract class WebSocketFeedBase
     private static readonly TimeSpan InitialBackoff = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(30);
 
+    private ClientWebSocket? _activeSocket;
+
     /// <summary>Build the WebSocket endpoint for the requested instruments.</summary>
     protected abstract Uri BuildEndpoint(IReadOnlyList<InstrumentId> instruments);
 
@@ -60,6 +62,7 @@ public abstract class WebSocketFeedBase
         while (!ct.IsCancellationRequested)
         {
             using var socket = new ClientWebSocket();
+            _activeSocket = socket;
             try
             {
                 await socket.ConnectAsync(BuildEndpoint(instruments), ct).ConfigureAwait(false);
@@ -78,8 +81,21 @@ public abstract class WebSocketFeedBase
                 await DelayBackoffAsync(backoff, ct).ConfigureAwait(false);
                 backoff = NextBackoff(backoff);
             }
+            finally
+            {
+                _activeSocket = null;
+            }
         }
     }
+
+    /// <summary>
+    /// Force the current connection to drop so the loop reconnects and re-runs
+    /// the subscribe handshake. Used to re-subscribe after a sequence gap on
+    /// exchanges (like Coinbase) whose recovery is "re-subscribe for a fresh
+    /// snapshot". Aborting leaves the socket non-open, so the read loop exits
+    /// cleanly and reconnects without backoff.
+    /// </summary>
+    protected void RequestReconnect() => _activeSocket?.Abort();
 
     private async Task ReadLoopAsync(ClientWebSocket socket, CancellationToken ct)
     {

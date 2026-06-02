@@ -9,4 +9,8 @@
     <ProjectReference Include="..\TickForge.Core\TickForge.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="TickForge.Tests" />
+  </ItemGroup>
+
 </Project>

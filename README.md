@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ TickForge
+#  TickForge
 
 **Çoklu borsa, düşük gecikmeli L2 order book motoru — yerleşik latency ölçümüyle.**
 

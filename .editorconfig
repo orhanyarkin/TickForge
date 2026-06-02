@@ -10,3 +10,9 @@ dotnet_diagnostic.CA1859.severity = suggestion
 # uses underscores; CA1707 does not apply to test identifiers.
 [tests/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none
+
+# BenchmarkDotNet requires public benchmark types and instance benchmark/setup
+# methods, which trip these rules; they do not apply to benchmark harness code.
+[bench/**/*.cs]
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA1822.severity = none

@@ -149,9 +149,13 @@ public abstract class WebSocketFeedBase
 
     private static async Task DelayBackoffAsync(TimeSpan backoff, CancellationToken ct)
     {
+        // Apply jitter in [0.8x, 1.2x] so many clients reconnecting at once do not
+        // synchronize into a thundering herd against the exchange.
+        var jitter = 0.8 + (Random.Shared.NextDouble() * 0.4);
+        var delay = backoff * jitter;
         try
         {
-            await Task.Delay(backoff, ct).ConfigureAwait(false);
+            await Task.Delay(delay, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

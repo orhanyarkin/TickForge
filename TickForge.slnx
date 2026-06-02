@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/bench/">
+    <Project Path="bench/TickForge.Benchmarks/TickForge.Benchmarks.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/TickForge.App/TickForge.App.csproj" />
     <Project Path="src/TickForge.Core/TickForge.Core.csproj" />

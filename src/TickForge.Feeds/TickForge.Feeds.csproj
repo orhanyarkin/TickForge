@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="TickForge.Tests" />
+    <InternalsVisibleTo Include="TickForge.Benchmarks" />
   </ItemGroup>
 
 </Project>

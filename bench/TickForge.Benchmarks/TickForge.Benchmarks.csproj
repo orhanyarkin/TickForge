@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>TickForge.Benchmarks</RootNamespace>
+    <AssemblyName>TickForge.Benchmarks</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TickForge.Core\TickForge.Core.csproj" />
+    <ProjectReference Include="..\..\src\TickForge.Feeds\TickForge.Feeds.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+
+</Project>

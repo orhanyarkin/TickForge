@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>TickForge.Feeds</RootNamespace>
+    <AssemblyName>TickForge.Feeds</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TickForge.Core\TickForge.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>TickForge.Tests</RootNamespace>
+    <AssemblyName>TickForge.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TickForge.Core\TickForge.Core.csproj" />
+    <ProjectReference Include="..\..\src\TickForge.Latency\TickForge.Latency.csproj" />
+    <ProjectReference Include="..\..\src\TickForge.Feeds\TickForge.Feeds.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+</Project>

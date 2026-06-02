@@ -1,0 +1,7 @@
+bin/
+obj/
+.vs/
+*.user
+artifacts/
+BenchmarkDotNet.Artifacts/
+[Tt]est[Rr]esults/

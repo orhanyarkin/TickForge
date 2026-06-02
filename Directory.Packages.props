@@ -1,0 +1,21 @@
+<Project>
+
+  <!--
+    Central Package Management.
+    All package versions are declared here; individual csproj files reference
+    packages without a Version attribute. Bump versions in one place.
+  -->
+  <ItemGroup>
+    <!-- Latency histogram (coordinated-omission aware percentiles) -->
+    <PackageVersion Include="HdrHistogram" Version="2.5.0" />
+
+    <!-- Micro-benchmarking -->
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.2" />
+
+    <!-- Test stack -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.0.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>TickForge.Latency</RootNamespace>
+    <AssemblyName>TickForge.Latency</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TickForge.Core\TickForge.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="HdrHistogram" />
+  </ItemGroup>
+
+</Project>

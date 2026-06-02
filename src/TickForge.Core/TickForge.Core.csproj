@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>TickForge.Core</RootNamespace>
+    <AssemblyName>TickForge.Core</AssemblyName>
+  </PropertyGroup>
+
+</Project>

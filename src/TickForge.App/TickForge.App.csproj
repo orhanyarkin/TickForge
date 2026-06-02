@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>TickForge.App</RootNamespace>
+    <AssemblyName>TickForge.App</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TickForge.Core\TickForge.Core.csproj" />
+    <ProjectReference Include="..\TickForge.Latency\TickForge.Latency.csproj" />
+    <ProjectReference Include="..\TickForge.Feeds\TickForge.Feeds.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,12 @@
+root = true
+
+[*.cs]
+# CA1859 prefers concrete types for performance. In the app's composition/wiring
+# layer the IFeedAdapter abstraction is intentional (it is the extension point for
+# more exchanges) and is not on any hot path, so treat this as advice.
+dotnet_diagnostic.CA1859.severity = suggestion
+
+# Test method names follow the xUnit convention (Method_State_Expectation), which
+# uses underscores; CA1707 does not apply to test identifiers.
+[tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none

@@ -1,7 +1,11 @@
 bin/
 obj/
 .vs/
+.idea/
 *.user
 artifacts/
 BenchmarkDotNet.Artifacts/
 [Tt]est[Rr]esults/
+
+# Local tooling notes, kept out of the published repo
+CLAUDE.md

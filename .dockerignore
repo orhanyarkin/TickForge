@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/out/
+.git/
+.github/
+.vs/
+.vscode/
+artifacts/
+**/BenchmarkDotNet.Artifacts/
+**/TestResults/
+*.user

@@ -1,0 +1,13 @@
+services:
+  tickforge:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    image: tickforge:latest
+    container_name: tickforge
+    ports:
+      - "5055:8080"          # browse the dashboard at http://localhost:5055
+    environment:
+      TICKFORGE_SYMBOL: "BTC/USDT"
+      TICKFORGE_EXCHANGES: "binance,coinbase"
+    restart: unless-stopped

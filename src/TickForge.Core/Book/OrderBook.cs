@@ -56,6 +56,16 @@ public sealed class OrderBook
         }
     }
 
+    /// <summary>
+    /// Copy the top levels of one side (best first) into <paramref name="destination"/>,
+    /// up to its length, returning the number written. For display/snapshotting.
+    /// </summary>
+    public int CopyTopLevels(Side side, Span<LevelChange> destination)
+    {
+        var book = side == Side.Bid ? _bids : _asks;
+        return book.CopyTop(destination);
+    }
+
     /// <summary>Highest resting bid price, or <c>null</c> when there are no bids.</summary>
     public decimal? BestBid => _bids.TryGetBest(out var price, out _) ? price : null;
 

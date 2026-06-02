@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using TickForge.App;
 using TickForge.Core.Abstractions;
 using TickForge.Core.Book;
 using TickForge.Feeds.Binance;

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>TickForge.Web</RootNamespace>
+    <AssemblyName>TickForge.Web</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TickForge.Core\TickForge.Core.csproj" />
+    <ProjectReference Include="..\TickForge.Latency\TickForge.Latency.csproj" />
+    <ProjectReference Include="..\TickForge.Feeds\TickForge.Feeds.csproj" />
+  </ItemGroup>
+
+</Project>

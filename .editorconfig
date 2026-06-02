@@ -16,3 +16,9 @@ dotnet_diagnostic.CA1707.severity = none
 [bench/**/*.cs]
 dotnet_diagnostic.CA1515.severity = none
 dotnet_diagnostic.CA1822.severity = none
+
+# The web host logs only infrequent lifecycle/resync events, so the compiled
+# LoggerMessage-delegate rules add ceremony without benefit here.
+[src/TickForge.Web/**.cs]
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1873.severity = none

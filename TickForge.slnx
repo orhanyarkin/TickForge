@@ -7,6 +7,7 @@
     <Project Path="src/TickForge.Core/TickForge.Core.csproj" />
     <Project Path="src/TickForge.Feeds/TickForge.Feeds.csproj" />
     <Project Path="src/TickForge.Latency/TickForge.Latency.csproj" />
+    <Project Path="src/TickForge.Web/TickForge.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/TickForge.Tests/TickForge.Tests.csproj" />

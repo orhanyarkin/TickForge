@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TickForge — Live Order Books</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">⚡</span>
+      <span class="name">TickForge</span>
+      <span class="tag">live L2 order books</span>
+    </div>
+    <div class="meta">
+      <span id="symbol" class="symbol">—</span>
+      <span id="status" class="status off"><i></i>connecting…</span>
+    </div>
+  </header>
+
+  <main id="exchanges" class="grid"></main>
+
+  <footer class="foot">
+    <span>internal tick-to-process latency, microseconds (p50 / p90 / p99 / p99.9)</span>
+    <span id="updated">—</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

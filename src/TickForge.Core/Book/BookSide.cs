@@ -51,6 +51,25 @@ public sealed class BookSide
     }
 
     /// <summary>
+    /// Copy the best levels (best first) into <paramref name="destination"/>,
+    /// up to its length, and return how many were written. Intended for
+    /// display/snapshotting, not the hot path; uses the struct enumerator so it
+    /// does not allocate.
+    /// </summary>
+    public int CopyTop(Span<LevelChange> destination)
+    {
+        var count = 0;
+        foreach (var kv in _levels)
+        {
+            if (count >= destination.Length)
+                break;
+            destination[count++] = new LevelChange(Side, kv.Key, kv.Value);
+        }
+
+        return count;
+    }
+
+    /// <summary>
     /// The best level on this side (highest bid / lowest ask), or <c>false</c>
     /// when the side is empty. Reads the first element via the struct enumerator,
     /// so it does not allocate.

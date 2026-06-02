@@ -2,15 +2,14 @@ using System;
 using TickForge.Core.Abstractions;
 using TickForge.Core.Book;
 using TickForge.Core.Time;
-using TickForge.Latency;
 
-namespace TickForge.App;
+namespace TickForge.Latency;
 
 /// <summary>
-/// The sink that closes the loop: it applies normalized level changes to the
+/// The sink that closes the loop: it applies normalized level changes to an
 /// <see cref="OrderBook"/> and records the internal tick-to-process latency —
 /// the interval from when the frame was read off the socket
-/// (<paramref name="recvTsNanos"/>) to when the apply returns.
+/// (<c>recvTsNanos</c>) to when the apply returns.
 /// </summary>
 public sealed class LatencyBookSink : IBookSink
 {

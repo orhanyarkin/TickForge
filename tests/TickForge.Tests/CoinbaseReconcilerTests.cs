@@ -1,6 +1,7 @@
 using TickForge.Core.Abstractions;
 using TickForge.Feeds.Coinbase;
 using Xunit;
+using static TickForge.Feeds.Coinbase.CoinbaseMessageKind;
 
 namespace TickForge.Tests;
 
@@ -11,15 +12,7 @@ public sealed class CoinbaseReconcilerTests
 
     private static LevelChange Bid(decimal price, decimal qty) => new(Side.Bid, price, qty);
     private static LevelChange Ask(decimal price, decimal qty) => new(Side.Ask, price, qty);
-
-    private static CoinbaseL2Message Snap(long seq, params LevelChange[] levels) =>
-        new(seq, CoinbaseMessageKind.Snapshot, levels);
-
-    private static CoinbaseL2Message Upd(long seq, params LevelChange[] levels) =>
-        new(seq, CoinbaseMessageKind.Update, levels);
-
-    private static CoinbaseL2Message Other(long seq) =>
-        new(seq, CoinbaseMessageKind.Other, []);
+    private static LevelChange[] Levels(params LevelChange[] levels) => levels;
 
     [Fact]
     public void SnapshotThenContiguousUpdates_NoResync()
@@ -29,9 +22,9 @@ public sealed class CoinbaseReconcilerTests
         var rec = new CoinbaseReconciler(Btc, sink, () => resyncRequests++);
 
         rec.Reset();
-        rec.OnMessage(Snap(5, Bid(100m, 1m), Ask(101m, 1m)), Ts);
-        rec.OnMessage(Upd(6, Bid(100m, 2m)), Ts);
-        rec.OnMessage(Upd(7, Ask(101m, 0m)), Ts);   // removes the ask
+        rec.OnMessage(5, Snapshot, Levels(Bid(100m, 1m), Ask(101m, 1m)), Ts);
+        rec.OnMessage(6, Update, Levels(Bid(100m, 2m)), Ts);
+        rec.OnMessage(7, Update, Levels(Ask(101m, 0m)), Ts);   // removes the ask
 
         Assert.Empty(sink.Resyncs);
         Assert.Equal(0, resyncRequests);
@@ -51,9 +44,9 @@ public sealed class CoinbaseReconcilerTests
         var rec = new CoinbaseReconciler(Btc, sink, () => resyncRequests++);
 
         rec.Reset();
-        rec.OnMessage(Snap(0, Bid(100m, 1m)), Ts);   // expected 1
-        rec.OnMessage(Other(1), Ts);                 // ack consumes seq 1 -> expected 2
-        rec.OnMessage(Upd(2, Bid(100m, 2m)), Ts);    // seq 2 matches -> applied
+        rec.OnMessage(0, Snapshot, Levels(Bid(100m, 1m)), Ts);   // expected 1
+        rec.OnMessage(1, Other, Levels(), Ts);                   // ack consumes seq 1 -> expected 2
+        rec.OnMessage(2, Update, Levels(Bid(100m, 2m)), Ts);     // seq 2 matches -> applied
 
         Assert.Empty(sink.Resyncs);
         Assert.Equal(0, resyncRequests);
@@ -69,9 +62,9 @@ public sealed class CoinbaseReconcilerTests
         var rec = new CoinbaseReconciler(Btc, sink, () => resyncRequests++);
 
         rec.Reset();
-        rec.OnMessage(Snap(5, Bid(100m, 1m)), Ts);
-        rec.OnMessage(Upd(6, Bid(100m, 2m)), Ts);
-        rec.OnMessage(Upd(9, Bid(100m, 3m)), Ts);   // gap: expected 7, got 9
+        rec.OnMessage(5, Snapshot, Levels(Bid(100m, 1m)), Ts);
+        rec.OnMessage(6, Update, Levels(Bid(100m, 2m)), Ts);
+        rec.OnMessage(9, Update, Levels(Bid(100m, 3m)), Ts);     // gap: expected 7, got 9
 
         Assert.Single(sink.Resyncs);
         Assert.Equal(1, resyncRequests);
@@ -84,7 +77,7 @@ public sealed class CoinbaseReconcilerTests
         var rec = new CoinbaseReconciler(Btc, sink, () => { });
 
         rec.Reset();
-        rec.OnMessage(Upd(3, Bid(100m, 1m)), Ts);   // no snapshot yet
+        rec.OnMessage(3, Update, Levels(Bid(100m, 1m)), Ts);     // no snapshot yet
 
         Assert.Empty(sink.Deltas);
         Assert.Empty(sink.Resyncs);
@@ -97,12 +90,12 @@ public sealed class CoinbaseReconcilerTests
         var rec = new CoinbaseReconciler(Btc, sink, () => { });
 
         rec.Reset();
-        rec.OnMessage(Snap(5, Bid(100m, 1m)), Ts);
-        rec.OnMessage(Upd(9, Bid(100m, 2m)), Ts);   // gap -> resync, awaits a fresh snapshot
+        rec.OnMessage(5, Snapshot, Levels(Bid(100m, 1m)), Ts);
+        rec.OnMessage(9, Update, Levels(Bid(100m, 2m)), Ts);     // gap -> resync, awaits a fresh snapshot
 
         // The re-subscribe yields a new snapshot with a new sequence baseline.
-        rec.OnMessage(Snap(20, Bid(200m, 5m), Ask(201m, 5m)), Ts);
-        rec.OnMessage(Upd(21, Bid(200m, 7m)), Ts);
+        rec.OnMessage(20, Snapshot, Levels(Bid(200m, 5m), Ask(201m, 5m)), Ts);
+        rec.OnMessage(21, Update, Levels(Bid(200m, 7m)), Ts);
 
         Assert.Single(sink.Resyncs);
         Assert.Equal(2, sink.Snapshots.Count);

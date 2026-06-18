@@ -38,13 +38,18 @@ public sealed class CoinbaseReconciler
         _expectedSequence = 0;
     }
 
-    /// <summary>Feed one normalized message (book or otherwise).</summary>
-    public void OnMessage(in CoinbaseL2Message message, long recvTsNanos)
+    /// <summary>
+    /// Feed one message. <paramref name="levels"/> is a span over the adapter's
+    /// reused parse buffer; the Coinbase reconciler never buffers, so the span is
+    /// passed straight through to the sink with no copy.
+    /// </summary>
+    public void OnMessage(
+        long sequenceNum, CoinbaseMessageKind kind, ReadOnlySpan<LevelChange> levels, long recvTsNanos)
     {
-        if (message.Kind == CoinbaseMessageKind.Snapshot)
+        if (kind == CoinbaseMessageKind.Snapshot)
         {
-            _sink.OnSnapshot(_instrument, message.Levels, recvTsNanos);
-            _expectedSequence = message.SequenceNum + 1;
+            _sink.OnSnapshot(_instrument, levels, recvTsNanos);
+            _expectedSequence = sequenceNum + 1;
             _synced = true;
             return;
         }
@@ -52,17 +57,17 @@ public sealed class CoinbaseReconciler
         if (!_synced)
             return; // ignore everything until the first snapshot establishes the book
 
-        if (message.SequenceNum != _expectedSequence)
+        if (sequenceNum != _expectedSequence)
         {
-            Resync($"sequence gap: expected {_expectedSequence}, got {message.SequenceNum}");
+            Resync($"sequence gap: expected {_expectedSequence}, got {sequenceNum}");
             return;
         }
 
-        _expectedSequence = message.SequenceNum + 1;
+        _expectedSequence = sequenceNum + 1;
 
         // Only book messages change the book; Other messages just advance the counter.
-        if (message.Kind == CoinbaseMessageKind.Update)
-            _sink.OnDelta(_instrument, message.Levels, recvTsNanos);
+        if (kind == CoinbaseMessageKind.Update)
+            _sink.OnDelta(_instrument, levels, recvTsNanos);
     }
 
     private void Resync(string reason)

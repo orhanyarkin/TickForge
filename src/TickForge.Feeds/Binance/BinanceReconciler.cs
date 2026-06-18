@@ -18,9 +18,9 @@ namespace TickForge.Feeds.Binance;
 /// <c>u</c>; a hole means a message was lost → resync.</item>
 /// </list>
 ///
-/// All sequencing emits through an <see cref="IBookSink"/>. When a resync is
-/// required the reconciler invokes the supplied <c>requestSnapshot</c> callback
-/// so the transport can re-fetch the REST snapshot.
+/// Diffs arrive as a span over the adapter's reused parse buffer. In steady state
+/// the span is passed straight through to the sink (no copy); only while
+/// buffering during bootstrap are the levels copied, since the buffer is reused.
 /// </summary>
 public sealed class BinanceReconciler
 {
@@ -52,15 +52,17 @@ public sealed class BinanceReconciler
     }
 
     /// <summary>Feed one diff event. Before the snapshot it is buffered; after, it is sequenced.</summary>
-    public void OnDiff(in BinanceDepthEvent evt, long recvTsNanos)
+    public void OnDiff(long firstUpdateId, long finalUpdateId, ReadOnlySpan<LevelChange> levels, long recvTsNanos)
     {
         if (!_live)
         {
-            _buffer.Add(new BufferedEvent(evt, recvTsNanos));
+            // Buffering during bootstrap: the caller's parse buffer is reused, so
+            // the levels must be copied to survive until replay.
+            _buffer.Add(new BufferedEvent(firstUpdateId, finalUpdateId, levels.ToArray(), recvTsNanos));
             return;
         }
 
-        ApplyLive(evt, recvTsNanos);
+        ApplyLive(firstUpdateId, finalUpdateId, levels, recvTsNanos);
     }
 
     /// <summary>Apply the REST snapshot, then replay any buffered diffs on top of it.</summary>
@@ -82,24 +84,24 @@ public sealed class BinanceReconciler
             if (!_live)
                 break; // a replayed event triggered a resync; stop draining
 
-            ApplyLive(buffered.Event, buffered.RecvTsNanos);
+            ApplyLive(buffered.FirstUpdateId, buffered.FinalUpdateId, buffered.Levels, buffered.RecvTsNanos);
         }
     }
 
-    private void ApplyLive(in BinanceDepthEvent evt, long recvTsNanos)
+    private void ApplyLive(long firstUpdateId, long finalUpdateId, ReadOnlySpan<LevelChange> levels, long recvTsNanos)
     {
-        if (evt.FinalUpdateId <= _lastFinalId)
+        if (finalUpdateId <= _lastFinalId)
             return; // fully-seen or stale event
 
-        if (evt.FirstUpdateId <= _lastFinalId + 1)
+        if (firstUpdateId <= _lastFinalId + 1)
         {
-            _sink.OnDelta(_instrument, evt.Levels, recvTsNanos);
-            _lastFinalId = evt.FinalUpdateId;
+            _sink.OnDelta(_instrument, levels, recvTsNanos);
+            _lastFinalId = finalUpdateId;
             return;
         }
 
-        // evt.FirstUpdateId > _lastFinalId + 1 → a message was lost.
-        Resync($"sequence gap: expected U<={_lastFinalId + 1}, got U={evt.FirstUpdateId}");
+        // firstUpdateId > _lastFinalId + 1 → a message was lost.
+        Resync($"sequence gap: expected U<={_lastFinalId + 1}, got U={firstUpdateId}");
     }
 
     private void Resync(string reason)
@@ -111,9 +113,12 @@ public sealed class BinanceReconciler
         _requestSnapshot();
     }
 
-    private readonly struct BufferedEvent(BinanceDepthEvent evt, long recvTsNanos)
+    private readonly struct BufferedEvent(
+        long firstUpdateId, long finalUpdateId, LevelChange[] levels, long recvTsNanos)
     {
-        public BinanceDepthEvent Event { get; } = evt;
+        public long FirstUpdateId { get; } = firstUpdateId;
+        public long FinalUpdateId { get; } = finalUpdateId;
+        public LevelChange[] Levels { get; } = levels;
         public long RecvTsNanos { get; } = recvTsNanos;
     }
 }

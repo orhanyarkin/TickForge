@@ -32,10 +32,13 @@ test projesi ve CI gelir.
   reconciliation) ve Coinbase (Advanced Trade `level2`, global `sequence_num`)
   kendi bootstrap ve gap → resync mantıklarını, saf ve test edilebilir bir
   reconciler arkasında izole şekilde yürütür.
-- **Allocation-free hot path.** Frame'ler pooled buffer'lara okunur ve book'a
-  `ReadOnlySpan<LevelChange>` olarak verilir — mesaj başına heap trafiği yok.
-  Elle yazılmış bir `Utf8JsonReader` parser frame başına **0 byte** allocate
-  ederken, eşdeğer source-generated yol ~5.4 KB harcar.
+- **Allocation-free parse yolu.** Her iki borsanın da **canlı** yolu, DTO ya da
+  `string[][]` ara nesneleri üretmeden doğrudan yeniden kullanılan bir buffer'a
+  yazan elle yazılmış `Utf8JsonReader` parser'lar kullanır — frame başına
+  **0 byte** (eşdeğer source-generated yol ~5.4 KB harcar). Parse edilen span
+  book'a kopyasız geçer. Tek istisna: book bir `SortedDictionary` olduğundan,
+  ilk kez görülen bir fiyat seviyesi için bir node allocate eder — dokümante
+  edilmiş bir trade-off (düz dizi varyantı benchmark'lanıyor).
 - **Dürüst latency.** İç tick-to-process gecikmesi, coordinated-omission
   düzeltmeli bir HdrHistogram'a kaydedilir ve p50/p90/p99/p99.9 olarak sunulur.
   Borsa-yerel gecikmesi **bilerek raporlanmaz** — saatler senkron olmadığı için
@@ -135,10 +138,11 @@ Lokalde tekrar üretmek için: `dotnet run -c Release --project bench/TickForge.
 | `OrderBook.ApplyDelta` | Derin bir book'a delta batch'i uygulama |
 | `BookSide` decimal vs `long` tick | `decimal` doğruluğu vs scaled-integer hızı dengesi |
 
-Elle yazılmış parser doğrudan yeniden kullanılan bir buffer'a yazar ve frame
-başına **sıfır byte** allocate eder; buna karşılık source-generated yol
-`string[][]` artı her price/quantity için bir `string` ürettiğinden **~5.4 KB**
-harcar — mesaj başına yolun en baskın maliyeti budur.
+Elle yazılmış parser (canlı yolda kullanılan) doğrudan yeniden kullanılan bir
+buffer'a yazar ve frame başına **sıfır byte** allocate eder; buna karşılık
+source-generated yol `string[][]` artı her price/quantity için bir `string`
+ürettiğinden **~5.4 KB** harcar — mesaj başına yolun en baskın maliyeti budur.
+Source-gen yol referans implementasyon olarak benchmark ve parite testinde tutulur.
 
 ---
 
@@ -243,8 +247,8 @@ deterministik biçimde sürülür.
   integer varyantını bir deney olarak ele alır.
 - **Book tarafı başına `SortedDictionary`.** Netlik için seçildi. Yoğun book'lar
   için fiyat-indeksli düz bir dizi daha hızlıdır ve doğal bir sonraki benchmark'tır.
-- **Canlı yolda source-gen JSON, yanında benchmark'lanan elle yazılmış parser.**
-  Allocation-free reader testlerle eşdeğer kanıtlanır ve dokümante edilmiş fast
-  path olarak tutulur.
+- **Canlı yolda allocation-free elle yazılmış parser (her iki borsa).**
+  Source-generated yol, hand-rolled parser'ın çıktısının doğruluğunu kanıtlayan
+  parite testinde ve benchmark'ta referans olarak tutulur.
 - **Ölçmediğimiz şey.** Borsa-yerel gecikmesi. Borsa timestamp'i ile yerel saat
   senkron olmadığından, farkı raporlamak dürüst olmazdı.

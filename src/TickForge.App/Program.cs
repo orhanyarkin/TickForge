@@ -34,7 +34,7 @@ foreach (var exchange in options.Exchanges)
     // ~1 ms expected steady-state cadence for coordinated-omission correction.
     var latency = new LatencyRecorder(expectedIntervalNanos: 1_000_000);
     var sink = new LatencyBookSink(book, latency, Console.Error.WriteLine);
-    feeds.Add(new ExchangeFeed(adapter.ExchangeName, adapter, book, latency, sink));
+    feeds.Add(new ExchangeFeed(adapter.ExchangeName, adapter, sink));
 }
 
 using var cts = new CancellationTokenSource();
@@ -74,30 +74,25 @@ return 0;
 
 static void PrintFeed(ExchangeFeed feed)
 {
-    var book = feed.Book;
-    var latency = feed.Latency.Snapshot();
-    var bid = book.BestBid;
-    var ask = book.BestAsk;
-    string top = bid is { } b && ask is { } a
+    var top = feed.Sink.ReadTop();
+    var latency = feed.Sink.Snapshot();
+    string line = top.BestBid is { } b && top.BestAsk is { } a
         ? string.Format(
             CultureInfo.InvariantCulture,
             "bid {0} | ask {1} | spread {2} | mid {3}",
-            b, a, book.Spread, book.Mid)
+            b, a, top.Spread, top.Mid)
         : "book warming up…";
 
     Console.WriteLine(string.Create(
         CultureInfo.InvariantCulture,
-        $"{feed.Label,-9} v{book.Version,-8} {top,-64} {latency}"));
+        $"{feed.Label,-9} v{top.Version,-8} {line,-64} {latency}"));
 }
 
-/// <summary>One exchange's wiring: its adapter plus its own book and latency recorder.</summary>
-internal sealed class ExchangeFeed(
-    string label, IFeedAdapter adapter, OrderBook book, LatencyRecorder latency, LatencyBookSink sink)
+/// <summary>One exchange's wiring: its adapter and its synchronized book sink.</summary>
+internal sealed class ExchangeFeed(string label, IFeedAdapter adapter, LatencyBookSink sink)
 {
     public string Label { get; } = label;
     public IFeedAdapter Adapter { get; } = adapter;
-    public OrderBook Book { get; } = book;
-    public LatencyRecorder Latency { get; } = latency;
     public LatencyBookSink Sink { get; } = sink;
 }
 

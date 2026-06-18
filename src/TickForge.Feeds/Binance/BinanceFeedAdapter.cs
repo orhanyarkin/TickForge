@@ -1,6 +1,5 @@
 using System;
 using System.Net.WebSockets;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using TickForge.Core.Abstractions;
@@ -26,6 +25,10 @@ public sealed class BinanceFeedAdapter : WebSocketFeedBase, IFeedAdapter
     private readonly bool _ownsSnapshotSource;
     private readonly Action<string>? _log;
     private readonly object _gate = new();
+
+    // Reused per-frame parse buffer. Sized for the largest realistic diff; an
+    // overflow simply skips the frame, and the next sequence check resyncs.
+    private readonly LevelChange[] _parseBuffer = new LevelChange[4096];
 
     private IBookSink? _sink;
     private BinanceReconciler? _reconciler;
@@ -73,13 +76,14 @@ public sealed class BinanceFeedAdapter : WebSocketFeedBase, IFeedAdapter
 
     protected override void OnMessage(ReadOnlySpan<byte> payload, long recvTsNanos)
     {
-        var dto = JsonSerializer.Deserialize(payload, BinanceJsonContext.Default.BinanceDepthDiffDto);
-        if (dto is null)
+        // Allocation-free parse straight into the reused buffer (no DTO, no
+        // string[][]). In steady state the span flows through to the book apply
+        // without a copy.
+        if (!BinanceDepthParser.TryParse(payload, _parseBuffer, out var count, out var firstId, out var finalId))
             return;
 
-        var evt = BinanceParsing.ToDepthEvent(dto);
         lock (_gate)
-            _reconciler!.OnDiff(evt, recvTsNanos);
+            _reconciler!.OnDiff(firstId, finalId, _parseBuffer.AsSpan(0, count), recvTsNanos);
     }
 
     protected override void OnError(Exception exception) =>

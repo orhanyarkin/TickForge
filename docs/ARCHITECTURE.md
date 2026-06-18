@@ -126,6 +126,10 @@ that the stall itself caused.
 - `decimal` is correct for price/quantity but slower than scaled `long` ticks.
   The choice is documented and the scaled-integer variant is benchmarked, not
   shipped.
-- Live parsing uses a source-generated JSON context; an allocation-free
-  hand-rolled `Utf8JsonReader` parser is benchmarked alongside it and proven
-  equivalent by tests.
+- Live parsing for both exchanges uses an allocation-free hand-rolled
+  `Utf8JsonReader` parser that writes straight into a reused buffer. The
+  source-generated path is kept as the reference implementation it is validated
+  against (parity tests) and benchmarked against.
+- The order book is a `SortedDictionary`, so applying a span of level changes is
+  allocation-free except when a brand-new price level first appears (a tree-node
+  allocation) — the documented `decimal`/structure trade-off above.

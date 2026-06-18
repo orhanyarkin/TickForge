@@ -28,6 +28,10 @@ public sealed class CoinbaseFeedAdapter : WebSocketFeedBase, IFeedAdapter
     private CoinbaseReconciler? _reconciler;
     private InstrumentId _instrument;
 
+    // Reused per-frame parse buffer; an overflow skips the frame and the next
+    // sequence check resyncs.
+    private readonly LevelChange[] _parseBuffer = new LevelChange[4096];
+
     public CoinbaseFeedAdapter(Action<string>? log = null) => _log = log;
 
     public string ExchangeName => "Coinbase";
@@ -62,8 +66,10 @@ public sealed class CoinbaseFeedAdapter : WebSocketFeedBase, IFeedAdapter
 
     protected override void OnMessage(ReadOnlySpan<byte> payload, long recvTsNanos)
     {
-        if (CoinbaseParsing.TryParse(payload, out var message))
-            _reconciler!.OnMessage(message, recvTsNanos);
+        // Allocation-free parse straight into the reused buffer; the span flows
+        // through to the book apply without a copy.
+        if (CoinbaseDepthParser.TryParse(payload, _parseBuffer, out var seq, out var kind, out var count))
+            _reconciler!.OnMessage(seq, kind, _parseBuffer.AsSpan(0, count), recvTsNanos);
     }
 
     protected override void OnError(Exception exception) =>

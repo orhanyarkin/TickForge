@@ -3,6 +3,13 @@
   <PropertyGroup>
     <RootNamespace>TickForge.Web</RootNamespace>
     <AssemblyName>TickForge.Web</AssemblyName>
+    <!--
+      The web host logs only infrequent lifecycle/resync events, so the compiled
+      LoggerMessage-delegate rules (CA1848) and its guard (CA1873) add ceremony
+      without benefit. Suppressed here (not via an .editorconfig glob) so it is
+      unambiguous and travels with the project.
+    -->
+    <NoWarn>$(NoWarn);CA1848;CA1873</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,155 +1,111 @@
 <div align="center">
 
-#  TickForge
+**English** | [Türkçe](README.tr.md)
 
-**Çoklu borsa, düşük gecikmeli L2 order book motoru — yerleşik latency ölçümüyle.**
+</div>
 
-.NET 10 / C# 14 üzerine kurulu.
+<div align="center">
+
+# TickForge
+
+**Multi-exchange, low-latency L2 order book engine — with built-in latency measurement.**
+
+Built on .NET 10 / C# 14.
 
 [![CI](https://github.com/orhanyarkin/TickForge/actions/workflows/ci.yml/badge.svg)](https://github.com/orhanyarkin/TickForge/actions/workflows/ci.yml)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
 
 </div>
 
-TickForge, birden çok kripto borsasından canlı market-data alır, her borsa için
-güvenilmez bir bağlantı üzerinde tutarlı bir Level-2 order book tutar (snapshot
-bootstrap, sequence-gap tespiti, resync) ve kendi işleme gecikmesini dürüstçe
-ölçer. İçinde bir konsol host, canlı bir web dashboard, bir benchmark paketi, bir
-test projesi ve CI gelir.
+TickForge consumes live market data from multiple crypto exchanges, maintains a consistent Level-2 order book per exchange over an unreliable connection (snapshot bootstrap, sequence-gap detection, resync), and honestly measures its own processing latency. It ships with a console host, a live web dashboard, a benchmark suite, a test project and CI.
 
-> Amaç trade etmek değil. Asıl zor olan kısımları inşa etmek: protokol parsing,
-> paket kaybı altında book tutarlılığı, allocation-free bir hot path ve
-> savunabileceğin bir latency rakamı.
+> The goal isn't to trade. It's to build the genuinely hard parts: protocol parsing, book consistency under packet loss, an allocation-free hot path and a latency number you can defend.
 
 ---
 
-## Öne çıkanlar
+## Highlights
 
-- **Borsadan bağımsız çekirdek.** Yeni bir borsa eklemek `OrderBook`'a asla
-  dokunmaz. Her adapter, wire formatını tek bir `LevelChange (Side, Price,
-  Quantity)` şekline normalize eder; `Quantity == 0` ise o seviye silinir.
-- **İki gerçek tutarlılık modeli.** Binance (REST snapshot + diff stream, `U`/`u`
-  reconciliation) ve Coinbase (Advanced Trade `level2`, global `sequence_num`)
-  kendi bootstrap ve gap → resync mantıklarını, saf ve test edilebilir bir
-  reconciler arkasında izole şekilde yürütür.
-- **Allocation-free parse yolu.** Her iki borsanın da **canlı** yolu, DTO ya da
-  `string[][]` ara nesneleri üretmeden doğrudan yeniden kullanılan bir buffer'a
-  yazan elle yazılmış `Utf8JsonReader` parser'lar kullanır — frame başına
-  **0 byte** (eşdeğer source-generated yol ~5.4 KB harcar). Parse edilen span
-  book'a kopyasız geçer. Tek istisna: book bir `SortedDictionary` olduğundan,
-  ilk kez görülen bir fiyat seviyesi için bir node allocate eder — dokümante
-  edilmiş bir trade-off (düz dizi varyantı benchmark'lanıyor).
-- **Dürüst latency.** İç tick-to-process gecikmesi, coordinated-omission
-  düzeltmeli bir HdrHistogram'a kaydedilir ve p50/p90/p99/p99.9 olarak sunulur.
-  Borsa-yerel gecikmesi **bilerek raporlanmaz** — saatler senkron olmadığı için
-  o rakam sinyal değil, clock skew olurdu.
-- **Üretim odaklı.** Central package management, `TreatWarningsAsErrors`, 29 unit
-  test, bir BenchmarkDotNet projesi, çok aşamalı Dockerfile ve GitHub Actions CI.
+- **Exchange-agnostic core.** Adding a new exchange never touches `OrderBook`. Each adapter normalizes the wire format into a single `LevelChange (Side, Price, Quantity)` shape; `Quantity == 0` removes the level.
+- **Two real consistency models.** Binance (REST snapshot + diff stream, `U`/`u` reconciliation) and Coinbase (Advanced Trade `level2`, global `sequence_num`) each run their own bootstrap and gap → resync logic, isolated behind a pure, testable reconciler.
+- **Allocation-free parse path.** The **live** path of both exchanges uses hand-written `Utf8JsonReader` parsers that write directly into a reused buffer without producing DTOs or intermediate `string[][]` objects — **0 bytes per frame** (the equivalent source-generated path spends ~5.4 KB). The parsed span reaches the book with zero copies. One exception: since the book is a `SortedDictionary`, a price level seen for the first time allocates a node — a documented trade-off (a flat-array variant is being benchmarked).
+- **Honest latency.** Internal tick-to-process latency is recorded into a coordinated-omission-corrected HdrHistogram and reported as p50/p90/p99/p99.9. Exchange-to-local latency is **deliberately not reported** — the clocks aren't synchronized, so that number would be clock skew, not signal.
+- **Production-minded.** Central package management, `TreatWarningsAsErrors`, 29 unit tests, a BenchmarkDotNet project, a multi-stage Dockerfile and GitHub Actions CI.
 
 ---
 
-## Nasıl çalışır
+## How it works
 
-### Modül haritası
+### Module map
 
 ```
-TickForge.Core        Domain + abstractions. I/O yok, bağımlılık yok.
+TickForge.Core        Domain + abstractions. No I/O, no dependencies.
   Abstractions/         Side, InstrumentId, LevelChange, IBookSink, IFeedAdapter
   Book/                 OrderBook, BookSide
-  Time/                 Clock (monotonic nanosaniye)
+  Time/                 Clock (monotonic nanoseconds)
 
-TickForge.Latency     HdrHistogram üzerine LatencyRecorder + LatencyBookSink. → Core
+TickForge.Latency     LatencyRecorder + LatencyBookSink on top of HdrHistogram. → Core
 
-TickForge.Feeds       Borsa başına bir adapter. → Core
+TickForge.Feeds       One adapter per exchange. → Core
   Common/               WebSocketFeedBase (connect, reconnect, frame read)
   Binance/              REST snapshot + diff-stream reconciliation
   Coinbase/             level2 + sequence_num reconciliation
 
-TickForge.App         Konsol host: adapters → sink → book → latency.
+TickForge.App         Console host: adapters → sink → book → latency.
 TickForge.Web         ASP.NET host + WebSocket + dashboard.
-TickForge.Benchmarks  BenchmarkDotNet micro-benchmark'lar.
-TickForge.Tests       xUnit: book, gap/resync, latency, parser pariteleri.
+TickForge.Benchmarks  BenchmarkDotNet micro-benchmarks.
+TickForge.Tests       xUnit: book, gap/resync, latency, parser parity.
 ```
 
-Bağımlılıklar tek yöne, içeri akar: her şey `Core`'a bakar; `Core` hiçbir şeye
-bakmaz.
+Dependencies flow one way, inward: everything looks at `Core`; `Core` looks at nothing.
 
-### Veri akışı
+### Data flow
 
 ```
-borsa ──▶ feed adapter ──▶ IBookSink ──▶ OrderBook
-              │                              │
-        (parse + recv ts)            LatencyRecorder ──▶ konsol / dashboard
+exchange ──▶ feed adapter ──▶ IBookSink ──▶ OrderBook
+                 │                              │
+          (parse + recv ts)            LatencyRecorder ──▶ console / dashboard
 ```
 
-Belirli bir wire formatını anlayan tek bileşen adapter'dır. Ham frame'leri
-normalize bir `LevelChange` batch'ine parse eder, frame socket'ten çıktığı anda
-bir receive timestamp yakalar ve sink üzerinde `OnSnapshot` / `OnDelta` /
-`OnResync` çağırır. Sink ise span'i book'a uygular ve işleme gecikmesini kaydeder.
+The adapter is the only component that understands a specific wire format. It parses raw frames into a normalized batch of `LevelChange`s, captures a receive timestamp the moment the frame leaves the socket, and calls `OnSnapshot` / `OnDelta` / `OnResync` on the sink. The sink applies the span to the book and records processing latency.
 
-### Book tutarlılığı
+### Book consistency
 
-Her iki borsa da bir fiyat seviyesindeki **mutlak** bekleyen miktarı yayınlar,
-ama bootstrap ve recovery şekilleri farklıdır — ve ikisi de tamamen kendi
-adapter'larının içinde yaşar.
+Both exchanges publish the **absolute** resting quantity at a price level, but they bootstrap and recover differently — and both live entirely inside their own adapters.
 
-- **Binance**, `@depth` diff stream'ini açıp event'leri buffer'lar, REST
-  snapshot'ı çeker, eskimiş buffer'lı event'leri (`u <= lastUpdateId`) atar ve
-  `U <= lastUpdateId + 1 <= u` koşulunu sağlayan ilk event'ten itibaren uygular.
-  Steady-state'te her event'in `U`'su bir önceki `u + 1`'den devam etmelidir; bir
-  boşluk resync ve yeniden bootstrap tetikler.
-- **Coinbase**, `level2`'ye subscribe olur, ilk `snapshot`'ı book olarak alır,
-  sonra `update`'leri uygular. Bağlantının `sequence_num`'ı **global**'dir (abone
-  onayını da sayar), bu yüzden süreklilik her mesaja karşı doğrulanırken book'u
-  yalnızca `l2_data` mesajları değiştirir. Sıradaki bir kopukluk resync ve
-  yeniden subscribe tetikler.
+- **Binance** opens the `@depth` diff stream and buffers events, fetches the REST snapshot, drops stale buffered events (`u <= lastUpdateId`), and applies from the first event satisfying `U <= lastUpdateId + 1 <= u`. In steady state, each event's `U` must continue from the previous `u + 1`; a gap triggers a resync and re-bootstrap.
+- **Coinbase** subscribes to `level2`, takes the first `snapshot` as the book, then applies `update`s. The connection's `sequence_num` is **global** (it counts the subscription ack too), so continuity is validated against every message while only `l2_data` messages mutate the book. A break in the sequence triggers a resync and re-subscribe.
 
-> Bu incelik kolayca yanlış yapılır: sequence'i kontrol etmeden önce yalnızca
-> `l2_data`'ya filtrelemek sayıları kopuk gösterir ve sahte bir resync döngüsü
-> üretir. TickForge her mesajı sayar ve bu bir regression testiyle korunur.
+> This subtlety is easy to get wrong: filtering to `l2_data` before checking the sequence makes the numbers look broken and produces a spurious resync loop. TickForge counts every message, and a regression test guards this.
 
-### Latency ölçümü
+### Latency measurement
 
-TickForge **iç tick-to-process gecikmesini** ölçer: bir frame'in socket'ten
-okunduğu an (`Clock.NowNanos()`, monotonic) ile `OrderBook.Apply`'ın döndüğü an
-arasındaki süre — tek saatli, savunulabilir bir metrik.
+TickForge measures **internal tick-to-process latency**: the time between a frame being read off the socket (`Clock.NowNanos()`, monotonic) and `OrderBook.Apply` returning — a single-clock, defensible metric.
 
-Borsa-yerel gecikmesini **bilerek raporlamaz**: borsa event timestamp'i ile yerel
-saat senkron değildir, dolayısıyla fark gerçek ağ/işleme süresinden değil, clock
-skew'den baskındır.
+It **deliberately does not report** exchange-to-local latency: the exchange event timestamp and the local clock aren't synchronized, so the difference would be dominated by clock skew, not real network/processing time.
 
-`Clock`, `Stopwatch.GetTimestamp()` kullanır (monotonic, mikrosaniye altı), asla
-`DateTime` değil. `LatencyRecorder` bir HdrHistogram'ı sarar ve **coordinated
-omission**'ı düzeltmek için `RecordValueWithExpectedInterval` kullanır — duraklayan
-bir tüketicinin, duraklamanın kendi yarattığı uzun-kuyruk örneklerini
-kaydedememesinden doğan yanlılık.
+`Clock` uses `Stopwatch.GetTimestamp()` (monotonic, sub-microsecond), never `DateTime`. `LatencyRecorder` wraps an HdrHistogram and uses `RecordValueWithExpectedInterval` to correct for **coordinated omission** — the bias where a stalled consumer fails to record the very long-tail samples the stall itself created.
 
-Tam tasarım gerekçesi için: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+For the full design rationale, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
 
-## Performans
+## Performance
 
-Lokalde tekrar üretmek için: `dotnet run -c Release --project bench/TickForge.Benchmarks`.
+To reproduce locally: `dotnet run -c Release --project bench/TickForge.Benchmarks`.
 
-| Benchmark | Neyi karşılaştırır |
+| Benchmark | What it compares |
 | --- | --- |
-| Depth parsing | Elle yazılmış `Utf8JsonReader` vs source-generated DTO parsing |
-| `OrderBook.ApplyDelta` | Derin bir book'a delta batch'i uygulama |
-| `BookSide` decimal vs `long` tick | `decimal` doğruluğu vs scaled-integer hızı dengesi |
+| Depth parsing | Hand-written `Utf8JsonReader` vs source-generated DTO parsing |
+| `OrderBook.ApplyDelta` | Applying a delta batch to a deep book |
+| `BookSide` decimal vs `long` ticks | `decimal` correctness vs scaled-integer speed trade-off |
 
-Elle yazılmış parser (canlı yolda kullanılan) doğrudan yeniden kullanılan bir
-buffer'a yazar ve frame başına **sıfır byte** allocate eder; buna karşılık
-source-generated yol `string[][]` artı her price/quantity için bir `string`
-ürettiğinden **~5.4 KB** harcar — mesaj başına yolun en baskın maliyeti budur.
-Source-gen yol referans implementasyon olarak benchmark ve parite testinde tutulur.
+The hand-written parser (used on the live path) writes directly into a reused buffer and allocates **zero bytes** per frame; the source-generated path produces `string[][]` plus a `string` per price/quantity, spending **~5.4 KB** — the dominant per-message cost on that path. The source-gen path is kept as the reference implementation in the benchmark and in a parity test.
 
 ---
 
-## Başlangıç
+## Getting started
 
-**Gereksinim:** [.NET 10 SDK](https://dotnet.microsoft.com/download). Burada
-kullanılan public market-data feed'leri API key istemez.
+**Requirement:** [.NET 10 SDK](https://dotnet.microsoft.com/download). The public market-data feeds used here require no API keys.
 
 ```bash
 git clone https://github.com/orhanyarkin/TickForge.git
@@ -159,13 +115,13 @@ dotnet build -c Release
 dotnet test
 ```
 
-### Konsol host
+### Console host
 
 ```bash
-# İki borsa, BTC/USDT, saniyede bir canlı top-of-book + p50/p99:
+# Both exchanges, BTC/USDT, live top-of-book + p50/p99 once per second:
 dotnet run -c Release --project src/TickForge.App -- --exchange all --symbol BTC/USDT
 
-# Tek borsa:
+# Single exchange:
 dotnet run -c Release --project src/TickForge.App -- --exchange binance --symbol BTC/USDT
 ```
 
@@ -173,38 +129,33 @@ dotnet run -c Release --project src/TickForge.App -- --exchange binance --symbol
 
 ```bash
 dotnet run -c Release --project src/TickForge.Web
-# http://localhost:5055 adresini aç
+# open http://localhost:5055
 ```
 
-Koyu, "trading terminali" temalı bir arayüz, WebSocket üzerinden saniyede ~10
-kez taze bir snapshot yayınlar: borsa başına depth bar'lı order book merdivenleri,
-best bid/ask/spread/mid ve canlı latency çipleri. `GET /api/state` aynı veriyi
-JSON olarak verir. Sembol ve borsalar `TICKFORGE_SYMBOL` ve `TICKFORGE_EXCHANGES`
-ile ayarlanabilir.
+A dark, "trading terminal"-themed UI publishes a fresh snapshot ~10 times per second over WebSocket: per-exchange order book ladders with depth bars, best bid/ask/spread/mid and live latency chips. `GET /api/state` serves the same data as JSON. The symbol and exchanges can be configured via `TICKFORGE_SYMBOL` and `TICKFORGE_EXCHANGES`.
 
 ### Docker
 
 ```bash
 docker compose -f infra/docker-compose.yml up --build
-# http://localhost:5055 adresini aç
+# open http://localhost:5055
 ```
 
-İmaj çok aşamalıdır (SDK build → `aspnet:10.0` runtime) ve non-root kullanıcı
-olarak çalışır.
+The image is multi-stage (SDK build → `aspnet:10.0` runtime) and runs as a non-root user.
 
 ---
 
-## Proje yapısı
+## Project structure
 
 ```
 src/
   TickForge.Core/         domain model, order book, monotonic clock
-  TickForge.Latency/      HdrHistogram recorder + latency kaydeden sink
-  TickForge.Feeds/        Binance + Coinbase adapter'ları, WebSocket transport
-  TickForge.App/          konsol host
+  TickForge.Latency/      HdrHistogram recorder + latency-recording sink
+  TickForge.Feeds/        Binance + Coinbase adapters, WebSocket transport
+  TickForge.App/          console host
   TickForge.Web/          ASP.NET + WebSocket dashboard
 bench/
-  TickForge.Benchmarks/   BenchmarkDotNet paketi
+  TickForge.Benchmarks/   BenchmarkDotNet suite
 tests/
   TickForge.Tests/        xUnit
 infra/
@@ -215,40 +166,26 @@ docs/
 
 ---
 
-## Testler
+## Tests
 
 ```bash
 dotnet test
 ```
 
-Paket, bozulma olasılığı en yüksek yerleri kapsar:
+The suite covers the places most likely to break:
 
-- **Order book** — snapshot replace, delta apply, zero-quantity removal, best
-  bid/ask seçimi, spread/mid matematiği, boş-book uç durumları, version
-  monotonluğu.
-- **Sequencing** — Binance gap tespiti ve bootstrap-sınır seçimi; Coinbase kopuk
-  `sequence_num` (canlı testte bulunan "diğer mesaj sayacı ilerletir ama sahte
-  gap üretmez" durumu dahil).
-- **Latency** — bilinen bir dağılımda percentile doğruluğu ve coordinated-omission
-  düzeltmesinin bir duraklamada kuyruğu gerçekten şişirmesi.
-- **Parser paritesi** — elle yazılmış parser'ın source-generated yolla birebir
-  aynı çıktıyı üretmesi.
+- **Order book** — snapshot replace, delta apply, zero-quantity removal, best bid/ask selection, spread/mid math, empty-book edge cases, version monotonicity.
+- **Sequencing** — Binance gap detection and bootstrap-boundary selection; Coinbase broken `sequence_num` (including the "other messages advance the counter but must not create a spurious gap" case found in live testing).
+- **Latency** — percentile correctness on a known distribution, and that coordinated-omission correction actually inflates the tail during a stall.
+- **Parser parity** — the hand-written parser produces output identical to the source-generated path.
 
-Feed adapter'lar canlı socket olmadan test edilir: reconciler'lar saftır ve
-snapshot kaynağı bir interface'tir, böylece sequence senaryoları in-memory veriyle
-deterministik biçimde sürülür.
+Feed adapters are tested without a live socket: the reconcilers are pure and the snapshot source is an interface, so sequence scenarios are driven deterministically with in-memory data.
 
 ---
 
-## Tasarım kararları ve dengeler
+## Design decisions and trade-offs
 
-- **Price/quantity için `decimal`.** Doğru ve okunabilir, ama scaled `long`
-  tick'lerden yavaş. Benchmark projesi farkı ölçer; production `decimal`'ı tutar,
-  integer varyantını bir deney olarak ele alır.
-- **Book tarafı başına `SortedDictionary`.** Netlik için seçildi. Yoğun book'lar
-  için fiyat-indeksli düz bir dizi daha hızlıdır ve doğal bir sonraki benchmark'tır.
-- **Canlı yolda allocation-free elle yazılmış parser (her iki borsa).**
-  Source-generated yol, hand-rolled parser'ın çıktısının doğruluğunu kanıtlayan
-  parite testinde ve benchmark'ta referans olarak tutulur.
-- **Ölçmediğimiz şey.** Borsa-yerel gecikmesi. Borsa timestamp'i ile yerel saat
-  senkron olmadığından, farkı raporlamak dürüst olmazdı.
+- **`decimal` for price/quantity.** Correct and readable, but slower than scaled `long` ticks. The benchmark project measures the difference; production keeps `decimal` and treats the integer variant as an experiment.
+- **`SortedDictionary` per book side.** Chosen for clarity. For dense books, a flat price-indexed array is faster and is the natural next benchmark.
+- **Allocation-free hand-written parser on the live path (both exchanges).** The source-generated path is kept as the reference in a parity test proving the hand-rolled parser's output is correct, and in the benchmark.
+- **What we don't measure.** Exchange-to-local latency. The exchange timestamp and the local clock aren't synchronized, so reporting the difference wouldn't be honest.
